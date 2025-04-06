@@ -9,7 +9,8 @@ app.title = "US-30 Dashboard"
 def load_data():
     df = pd.read_csv("https://raw.githubusercontent.com/GaetanAm/live-dashboard-project/main/data.csv", names=["timestamp", "value"])
     df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df["value"] = pd.to_numeric(df["value"].str.replace(",", ""))
+    df["value"] = df["value"].astype(str).str.replace(",", "")
+    df["value"] = pd.to_numeric(df["value"])
     return df
 
 import requests
