@@ -6,7 +6,6 @@ df = pd.read_csv("data.csv", names=["timestamp", "value"])
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 df["value"] = pd.to_numeric(df["value"], errors="coerce")
 
-
 today = pd.Timestamp.now().date()
 df_today = df[df["timestamp"].dt.date == today]
 
@@ -26,6 +25,9 @@ report = {
     "mean": round(mean_price, 2),
     "volatility": round(volatility, 2)
 }
+
+
+report = {k: float(v) if isinstance(v, (pd.Series, float, int)) else v for k, v in report.items()}
 
 with open("report.json", "w") as f:
     json.dump(report, f, indent=4)
