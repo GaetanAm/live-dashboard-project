@@ -4,7 +4,8 @@ from datetime import datetime
 
 df = pd.read_csv("data.csv", names=["timestamp", "value"])
 df["timestamp"] = pd.to_datetime(df["timestamp"])
-df["value"] = df["value"].str.replace(",", "").astype(float)
+df["value"] = pd.to_numeric(df["value"], errors="coerce")
+
 
 today = pd.Timestamp.now().date()
 df_today = df[df["timestamp"].dt.date == today]
