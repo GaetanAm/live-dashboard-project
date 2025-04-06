@@ -35,11 +35,8 @@ app.layout = html.Div([
 )
 def update_chart(_):
     df = load_data()
-    print("📊 DF utilisé pour le graph :")
-    print(df.head())
 
     if df.empty:
-        print("🚨 DF est vide !")
         return {}
 
     fig = px.line(df, x="timestamp", y="value", title="US-30 Price Over Time")
