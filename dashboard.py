@@ -86,8 +86,22 @@ def update_chart(options):
         xaxis_title="Timestamp",
         yaxis_title="Price",
         template="plotly_white",
-        hovermode="x unified"
+        hovermode="x unified",
+        xaxis=dict(
+            rangeselector=dict(
+                buttons=[
+                    dict(count=1, label="1h", step="hour", stepmode="backward"),
+                    dict(count=6, label="6h", step="hour", stepmode="backward"),
+                    dict(count=12, label="12h", step="hour", stepmode="backward"),
+                    dict(count=1, label="1j", step="day", stepmode="backward"),
+                    dict(step="all", label="All")
+                ]
+            ),
+            rangeslider=dict(visible=True),
+            type="date"
+        )
     )
+
     return fig
 
 @app.callback(
