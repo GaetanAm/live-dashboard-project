@@ -7,17 +7,21 @@ app = dash.Dash(__name__)
 app.title = "US-30 Dashboard"
 
 def load_data():
-    df = pd.read_csv("data.csv", names=["timestamp", "value"])
+    df = pd.read_csv("https://raw.githubusercontent.com/GaetanAm/live-dashboard-project/main/data.csv", names=["timestamp", "value"])
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df["value"] = pd.to_numeric(df["value"].str.replace(",", ""))
     return df
 
+import requests
+
 def load_report():
     try:
-        with open("report.json", "r") as f:
-            return json.load(f)
+        url = "https://raw.githubusercontent.com/GaetanAm/live-dashboard-project/main/report.json"
+        r = requests.get(url)
+        return r.json()
     except:
         return None
+
 
 app.layout = html.Div([
     html.H1("US-30 Index (Dow Jones) - Live"),html.Div(id="daily-report"),
