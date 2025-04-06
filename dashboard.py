@@ -26,22 +26,34 @@ def load_report():
         return None
 
 app.layout = html.Div([
-    html.H1("US-30 Index (Dow Jones) - Live"),
-    html.Div(id="daily-report"),
-    dcc.Graph(id="line-chart", figure={}),
+    html.H1("US-30 Index (Dow Jones) - Live", style={"textAlign": "center"}),
+
+    html.Div(id="daily-report", style={
+        "backgroundColor": "#f9f9f9",
+        "padding": "20px",
+        "borderRadius": "10px",
+        "boxShadow": "0 2px 5px rgba(0,0,0,0.1)",
+        "width": "400px",
+        "margin": "auto",
+        "marginBottom": "30px",
+        "fontFamily": "Arial"
+    }),
+
+    dcc.Graph(id="line-chart", figure={}, style={"width": "80%", "margin": "auto"}),
+
     html.Div([
-        html.Label("Afficher la moyenne et la zone de volatilité :"),
+        html.Label("Afficher :", style={"fontWeight": "bold", "marginRight": "10px"}),
         dcc.Checklist(
             id="options",
             options=[
                 {"label": "Moyenne", "value": "mean"},
-                {"label": "Volatilite", "value": "volatility"}
+                {"label": "Volatilité", "value": "volatility"}
             ],
             value=[],
-            labelStyle={"display": "inline-block", "margin-right": "10px"}
+            labelStyle={"display": "inline-block", "marginRight": "20px"}
         )
-    ], style={"margin-top": "20px"})
-])
+    ], style={"textAlign": "center", "marginTop": "20px", "marginBottom": "30px", "fontFamily": "Arial"})
+], style={"backgroundColor": "#ffffff", "fontFamily": "Arial"})
 
 @app.callback(
     dash.dependencies.Output("line-chart", "figure"),
@@ -56,18 +68,18 @@ def update_chart(options):
 
     fig = go.Figure()
 
-    # Ligne du prix
+    # Courbe principale
     fig.add_trace(go.Scatter(
         x=df["timestamp"], y=df["value"],
-        mode="lines",
-        name="Prix"
+        mode="lines", name="US-30 Value",
+        line=dict(color="royalblue")
     ))
 
-    # Moyenne (ligne horizontale)
+    # Moyenne
     if report and "mean" in options:
         fig.add_hline(y=report["mean"], line_dash="dash", line_color="green", name="Moyenne")
 
-    # Zone de volatilite autour de la moyenne
+    # Zone de volatilité
     if report and "volatility" in options:
         mean = report["mean"]
         vol = report["volatility"]
