@@ -32,6 +32,11 @@ app.layout = html.Div([
     dash.dependencies.Output("line-chart", "figure"),
     dash.dependencies.Input("line-chart", "id")
 )
+def update_chart(_):
+    df = load_data()
+    fig = px.line(df, x="timestamp", y="value", title="US-30 Price Over Time")
+    return fig
+
 
 @app.callback(
     dash.dependencies.Output("daily-report", "children"),
@@ -51,10 +56,7 @@ def update_report(_):
         html.Li(f"Volatility: {report['volatility']}")
     ])
 
-def update_chart(_):
-    df = load_data()
-    fig = px.line(df, x="timestamp", y="value", title="US-30 Price Over Time")
-    return fig
+
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000)
