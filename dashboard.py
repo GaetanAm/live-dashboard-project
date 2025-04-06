@@ -12,8 +12,15 @@ def load_data():
     df["value"] = pd.to_numeric(df["value"].str.replace(",", ""))
     return df
 
+def load_report():
+    try:
+        with open("report.json", "r") as f:
+            return json.load(f)
+    except:
+        return None
+
 app.layout = html.Div([
-    html.H1("US-30 Index (Dow Jones) - Live"),
+    html.H1("US-30 Index (Dow Jones) - Live"),html.Div(id="daily-report"),
     dcc.Graph(id="line-chart", figure={})
 ])
 
@@ -21,6 +28,25 @@ app.layout = html.Div([
     dash.dependencies.Output("line-chart", "figure"),
     dash.dependencies.Input("line-chart", "id")
 )
+
+@app.callback(
+    dash.dependencies.Output("daily-report", "children"),
+    dash.dependencies.Input("line-chart", "id")
+)
+def update_report(_):
+    report = load_report()
+    if not report:
+        return "No report available yet."
+    return html.Ul([
+        html.Li(f"Date: {report['date']}"),
+        html.Li(f"Open: {report['open']}"),
+        html.Li(f"Close: {report['close']}"),
+        html.Li(f"Min: {report['min']}"),
+        html.Li(f"Max: {report['max']}"),
+        html.Li(f"Mean: {report['mean']}"),
+        html.Li(f"Volatility: {report['volatility']}")
+    ])
+
 def update_chart(_):
     df = load_data()
     fig = px.line(df, x="timestamp", y="value", title="US-30 Price Over Time")
