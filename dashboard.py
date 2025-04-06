@@ -1,7 +1,7 @@
 import pandas as pd
 import dash
 from dash import dcc, html
-import plotly.express as px
+import plotly.graph_objects as go
 import requests
 
 app = dash.Dash(__name__)
@@ -26,54 +26,69 @@ def load_report():
         return None
 
 app.layout = html.Div([
-    html.H1("US-30 Index (Dow Jones) - Live", style={"textAlign": "center"}),
-
-    html.Div(id="daily-report", style={
-        "backgroundColor": "#f9f9f9",
-        "padding": "20px",
-        "borderRadius": "10px",
-        "boxShadow": "0 2px 5px rgba(0,0,0,0.1)",
-        "width": "400px",
-        "margin": "auto",
-        "marginBottom": "30px",
-        "fontFamily": "Arial"
-    }),
-
+    html.H1("US-30 Index (Dow Jones) - Live"),
+    html.Div(id="daily-report"),
+    dcc.Graph(id="line-chart", figure={}),
     html.Div([
-        html.H3("Dernière valeur :", style={"display": "inline"}),
-        html.Span(id="last-value", style={"fontWeight": "bold"})
-    ], style={"textAlign": "center", "marginBottom": "20px"}),
-
-    dcc.Graph(id="line-chart", figure={}, style={"width": "80%", "margin": "auto"})
-], style={"backgroundColor": "#ffffff", "fontFamily": "Arial"})
-
+        html.Label("Afficher la moyenne et la zone de volatilité :"),
+        dcc.Checklist(
+            id="options",
+            options=[
+                {"label": "Moyenne", "value": "mean"},
+                {"label": "Volatilite", "value": "volatility"}
+            ],
+            value=[],
+            labelStyle={"display": "inline-block", "margin-right": "10px"}
+        )
+    ], style={"margin-top": "20px"})
+])
 
 @app.callback(
     dash.dependencies.Output("line-chart", "figure"),
-    dash.dependencies.Input("line-chart", "id")
+    dash.dependencies.Input("options", "value")
 )
-def update_chart(_):
+def update_chart(options):
     df = load_data()
+    report = load_report()
+
     if df.empty:
         return {}
 
-    color = "green" if df["value"].iloc[-1] >= df["value"].iloc[0] else "red"
-    fig = px.line(df, x="timestamp", y="value", title="US-30 Price Over Time")
-    fig.update_traces(line=dict(color=color, width=2.5))
-    fig.update_layout(plot_bgcolor="#f5f5f5")
+    fig = go.Figure()
+
+    # Ligne du prix
+    fig.add_trace(go.Scatter(
+        x=df["timestamp"], y=df["value"],
+        mode="lines",
+        name="Prix"
+    ))
+
+    # Moyenne (ligne horizontale)
+    if report and "mean" in options:
+        fig.add_hline(y=report["mean"], line_dash="dash", line_color="green", name="Moyenne")
+
+    # Zone de volatilite autour de la moyenne
+    if report and "volatility" in options:
+        mean = report["mean"]
+        vol = report["volatility"]
+        fig.add_trace(go.Scatter(
+            x=list(df["timestamp"]) + list(df["timestamp"][::-1]),
+            y=[mean + vol] * len(df) + [mean - vol] * len(df),
+            fill='toself',
+            fillcolor='rgba(255, 0, 0, 0.1)',
+            line=dict(color='rgba(255,255,255,0)'),
+            hoverinfo="skip",
+            name="Zone de volatilité"
+        ))
+
+    fig.update_layout(
+        title="US-30 Price Over Time",
+        xaxis_title="Timestamp",
+        yaxis_title="Price",
+        template="plotly_white",
+        hovermode="x unified"
+    )
     return fig
-
-
-@app.callback(
-    dash.dependencies.Output("last-value", "children"),
-    dash.dependencies.Input("line-chart", "figure")
-)
-def update_last_value(_):
-    df = load_data()
-    if df.empty:
-        return "N/A"
-    return f"{df['value'].iloc[-1]:,.2f}"
-
 
 @app.callback(
     dash.dependencies.Output("daily-report", "children"),
@@ -92,7 +107,6 @@ def update_report(_):
         html.Li(f"Mean: {report['mean']}"),
         html.Li(f"Volatility: {report['volatility']}")
     ])
-
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000)
