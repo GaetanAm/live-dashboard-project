@@ -28,6 +28,18 @@ def load_report():
 app.layout = html.Div([
     html.H1("US-30 Index (Dow Jones) - Live", style={"textAlign": "center"}),
 
+    html.Div(id="summary-card", style={
+        "textAlign": "center",
+        "padding": "15px",
+        "margin": "10px auto",
+        "width": "400px",
+        "borderRadius": "10px",
+        "backgroundColor": "#e6f2ff",
+        "boxShadow": "0 2px 5px rgba(0,0,0,0.1)",
+        "fontSize": "16px",
+        "fontFamily": "Arial"
+    }),
+
     html.Div(id="daily-report", style={
         "backgroundColor": "#f9f9f9",
         "padding": "20px",
@@ -161,6 +173,28 @@ def update_report(_):
         html.Li(f"Mean: {report['mean']}"),
         html.Li(f"Volatility: {report['volatility']}")
     ])
+
+@app.callback(
+    dash.dependencies.Output("summary-card", "children"),
+    dash.dependencies.Input("line-chart", "id")
+)
+def update_summary(_):
+    report = load_report()
+    if not report:
+        return "Résumé non disponible."
+    try:
+        open_val = float(report["open"])
+        close_val = float(report["close"])
+        variation = (close_val - open_val) / open_val * 100
+        trend = "📈 Haussière" if variation >= 0 else "📉 Baissière"
+        return [
+            html.Div(f"📅 {report['date']}"),
+            html.Div(f"Dernier prix : {close_val:,.2f}"),
+            html.Div(f"Variation : {variation:+.2f}%"),
+            html.Div(f"Tendance : {trend}")
+        ]
+    except:
+        return "Erreur dans les données."
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000)
