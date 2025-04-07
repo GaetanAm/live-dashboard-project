@@ -142,8 +142,7 @@ app.layout = html.Div([
     html.Div([
         html.Button("📅 Télécharger les données", id="download-btn"),
         dcc.Download(id="download-data"),
-        html.Button("📸 Export PNG du graphe", id="export-png-btn", style={"marginLeft": "20px"}),
-        dcc.Download(id="download-image")
+
     ], style={"textAlign": "center", "marginTop": "20px"}),
 
     html.Footer([
@@ -331,15 +330,7 @@ def download_csv(n):
     csv = df.to_csv(index=False)
     return dict(content=csv, filename="us30_data.csv")
 
-@app.callback(
-    Output("download-image", "data"),
-    Input("export-png-btn", "n_clicks"),
-    State("line-chart", "figure"),
-    prevent_initial_call=True
-)
-def export_figure_as_png(n_clicks, fig):
-    fig_obj = go.Figure(fig)
-    return send_bytes(lambda buf: pio.write_image(fig_obj, buf, format="png"), "us30_chart.png")
+
     
 # ========== RUN APP ==========
 if __name__ == '__main__':
