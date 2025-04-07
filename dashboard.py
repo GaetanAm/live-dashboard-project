@@ -4,11 +4,14 @@ from dash import dcc, html
 import plotly.graph_objects as go
 import requests
 from datetime import datetime
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output, State, ClientsideFunction
 import io
 import base64
 
-app = dash.Dash(__name__)
+external_scripts = []
+external_stylesheets = []
+
+app = dash.Dash(__name__, external_scripts=external_scripts, external_stylesheets=external_stylesheets)
 app.title = "US-30 Dashboard"
 
 # ========== DATA LOADERS ==========
@@ -32,6 +35,8 @@ def load_report():
 
 # ========== APP LAYOUT ==========
 app.layout = html.Div([
+    dcc.Store(id="theme-store", storage_type="local"),
+
     html.H1("US-30 Index (Dow Jones) - Live", style={"textAlign": "center"}),
 
     html.Div([
@@ -135,12 +140,10 @@ app.layout = html.Div([
     dcc.Graph(id="line-chart", figure={}, style={"width": "90%", "margin": "auto"}),
 
     html.Div([
-        html.Button("📥 Télécharger les données", id="download-btn"),
+        html.Button("📅 Télécharger les données", id="download-btn"),
         dcc.Download(id="download-data"),
         html.Button("📸 Export PNG du graphe", id="export-png-btn", style={"marginLeft": "20px"})
-        Download(id="download-image")
-    ], style={"textAlign": "center", "marginTop": "20px"})
-], style={"backgroundColor": "#ffffff", "fontFamily": "Arial"})
+    ], style={"textAlign": "center", "marginTop": "20px"}),
 
     html.Footer([
         html.Hr(),
@@ -150,8 +153,19 @@ app.layout = html.Div([
             html.A("📊 Source: Investing.com", href="https://www.investing.com/indices/us-30", target="_blank")
         ], style={"textAlign": "center", "padding": "10px"})
     ], style={"marginTop": "40px", "backgroundColor": "#f1f1f1", "padding": "10px 0"})
+], id="main-container", style={"backgroundColor": "#ffffff", "fontFamily": "Arial"})
 
-], style={"backgroundColor": "#ffffff", "fontFamily": "Arial"})
+app.clientside_callback(
+    """
+    function(theme) {
+        document.body.className = theme === "plotly_dark" ? "dark" : "light";
+        return null;
+    }
+    """,
+    Output("theme-store", "data"),
+    Input("theme-toggle", "value")
+)
+
 # ========== CALLBACKS ==========
 @app.callback(
     Output("line-chart", "figure"),
