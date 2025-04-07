@@ -4,6 +4,9 @@ from dash import dcc, html
 import plotly.graph_objects as go
 import requests
 from datetime import datetime
+from dash.dependencies import Input, Output
+import io
+import base64
 
 app = dash.Dash(__name__)
 app.title = "US-30 Dashboard"
@@ -61,6 +64,16 @@ app.layout = html.Div([
         "fontFamily": "Arial"
     }),
 
+    html.Div(id="history-list", style={
+        "backgroundColor": "#f2f2f2",
+        "padding": "20px",
+        "borderRadius": "10px",
+        "width": "500px",
+        "margin": "20px auto",
+        "fontFamily": "Arial",
+        "boxShadow": "0 2px 5px rgba(0,0,0,0.1)"
+    }),
+
     html.Div([
         html.Label("Afficher les données sur :", style={"marginRight": "10px"}),
         dcc.Dropdown(
@@ -90,8 +103,6 @@ app.layout = html.Div([
         )
     ], style={"textAlign": "center", "marginBottom": "20px"}),
 
-    dcc.Graph(id="line-chart", figure={}, style={"width": "80%", "margin": "auto"}),
-
     html.Div([
         html.Label("Afficher :", style={"fontWeight": "bold", "marginRight": "10px"}),
         dcc.Checklist(
@@ -99,20 +110,26 @@ app.layout = html.Div([
             options=[
                 {"label": "Moyenne", "value": "mean"},
                 {"label": "Volatilité", "value": "volatility"},
-                {"label": "Prédiction naïve", "value": "prediction"}
+                {"label": "Prédiction naïve", "value": "prediction"},
+                {"label": "SMA (1h)", "value": "sma"}
             ],
             value=[],
             labelStyle={"display": "inline-block", "marginRight": "20px"}
         )
-    ], style={"textAlign": "center", "marginTop": "20px", "marginBottom": "30px", "fontFamily": "Arial"})
+    ], style={"textAlign": "center", "marginTop": "20px", "marginBottom": "30px", "fontFamily": "Arial"}),
+
+    dcc.Graph(id="line-chart", figure={}, style={"width": "80%", "margin": "auto"}),
+
+    html.Div([
+        html.Button("📥 Télécharger les données", id="download-btn"),
+        dcc.Download(id="download-data")
+    ], style={"textAlign": "center", "marginTop": "20px"})
 ], style={"backgroundColor": "#ffffff", "fontFamily": "Arial"})
 
 # ========== CALLBACKS ==========
 @app.callback(
-    dash.dependencies.Output("line-chart", "figure"),
-    [dash.dependencies.Input("options", "value"),
-     dash.dependencies.Input("chart-type", "value"),
-     dash.dependencies.Input("time-filter", "value")]
+    Output("line-chart", "figure"),
+    [Input("options", "value"), Input("chart-type", "value"), Input("time-filter", "value")]
 )
 def update_chart(options, chart_type, time_filter):
     df = load_data()
@@ -120,7 +137,6 @@ def update_chart(options, chart_type, time_filter):
     if df.empty:
         return {}
 
-    # Filtrage
     if time_filter != "ALL":
         delta = pd.Timedelta(time_filter)
         df = df[df["timestamp"] > df["timestamp"].max() - delta]
@@ -128,59 +144,46 @@ def update_chart(options, chart_type, time_filter):
     fig = go.Figure()
 
     if chart_type == "line":
-        fig.add_trace(go.Scatter(
-            x=df["timestamp"], y=df["value"],
-            mode="lines", name="US-30 Value",
-            line=dict(color="royalblue")
-        ))
+        fig.add_trace(go.Scatter(x=df["timestamp"], y=df["value"], mode="lines", name="US-30 Value", line=dict(color="royalblue")))
+
+        if "sma" in options:
+            sma = df.set_index("timestamp")["value"].rolling("1H").mean()
+            fig.add_trace(go.Scatter(x=sma.index, y=sma.values, mode="lines", name="SMA (1h)", line=dict(color="orange", dash="dot")))
 
         if report and "mean" in options:
             fig.add_hline(y=report["mean"], line_dash="dash", line_color="green", name="Moyenne")
 
         if report and "volatility" in options:
-            mean = report["mean"]
-            vol = report["volatility"]
+            mean, vol = report["mean"], report["volatility"]
             fig.add_trace(go.Scatter(
                 x=list(df["timestamp"]) + list(df["timestamp"][::-1]),
                 y=[mean + vol] * len(df) + [mean - vol] * len(df),
-                fill='toself',
-                fillcolor='rgba(255, 0, 0, 0.1)',
-                line=dict(color='rgba(255,255,255,0)'),
-                hoverinfo="skip",
-                name="Zone de volatilité"
+                fill='toself', fillcolor='rgba(255, 0, 0, 0.1)',
+                line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip", name="Zone de volatilité"
             ))
 
         if "prediction" in options:
+            from sklearn.linear_model import LinearRegression
             df_sorted = df.sort_values("timestamp")
             X = (df_sorted["timestamp"] - df_sorted["timestamp"].min()).dt.total_seconds().values.reshape(-1, 1)
             y = df_sorted["value"].values
-            try:
-                from sklearn.linear_model import LinearRegression
-                model = LinearRegression().fit(X, y)
-                future_X = [[X[-1][0] + 300]]  # 5 min plus tard
-                future_y = model.predict(future_X)[0]
-                fig.add_trace(go.Scatter(
-                    x=[df_sorted["timestamp"].max(), df_sorted["timestamp"].max() + pd.Timedelta(minutes=5)],
-                    y=[y[-1], future_y],
-                    mode="lines", name="Tendance (naïve)",
-                    line=dict(color="orange", dash="dot")
-                ))
-            except:
-                pass
+            model = LinearRegression().fit(X, y)
+            future_X = [[X[-1][0] + 300]]
+            future_y = model.predict(future_X)[0]
+            fig.add_trace(go.Scatter(
+                x=[df_sorted["timestamp"].max(), df_sorted["timestamp"].max() + pd.Timedelta(minutes=5)],
+                y=[y[-1], future_y], mode="lines", name="Tendance (naïve)",
+                line=dict(color="purple", dash="dash")
+            ))
 
     else:
-        df_resampled = df.set_index("timestamp").resample("1H").agg({
-            "value": ["first", "max", "min", "last"]
-        }).dropna()
+        df_resampled = df.set_index("timestamp").resample("1H").agg({"value": ["first", "max", "min", "last"]}).dropna()
         df_resampled.columns = ["open", "high", "low", "close"]
         df_resampled = df_resampled.reset_index()
-
         fig.add_trace(go.Candlestick(
             x=df_resampled["timestamp"],
-            open=df_resampled["open"],
-            high=df_resampled["high"],
-            low=df_resampled["low"],
-            close=df_resampled["close"],
+            open=df_resampled["open"], high=df_resampled["high"],
+            low=df_resampled["low"], close=df_resampled["close"],
             name="US-30 (OHLC)"
         ))
 
@@ -188,15 +191,14 @@ def update_chart(options, chart_type, time_filter):
         title="US-30 Price Over Time",
         xaxis_title="Timestamp",
         yaxis_title="Price",
-        template="plotly_white",
+        template="plotly",
         hovermode="x unified"
     )
-
     return fig
 
 @app.callback(
-    dash.dependencies.Output("daily-report", "children"),
-    dash.dependencies.Input("line-chart", "id")
+    Output("daily-report", "children"),
+    Input("line-chart", "id")
 )
 def update_report(_):
     report = load_report()
@@ -213,16 +215,15 @@ def update_report(_):
     ])
 
 @app.callback(
-    dash.dependencies.Output("summary-card", "children"),
-    dash.dependencies.Input("line-chart", "id")
+    Output("summary-card", "children"),
+    Input("line-chart", "id")
 )
 def update_summary(_):
     report = load_report()
     if not report:
         return "Résumé non disponible."
     try:
-        open_val = float(report["open"])
-        close_val = float(report["close"])
+        open_val, close_val = float(report["open"]), float(report["close"])
         variation = (close_val - open_val) / open_val * 100
         trend = "📈 Haussière" if variation >= 0 else "📉 Baissière"
         alert = "⚠️ Volatilité inhabituelle détectée." if abs(variation) > 5 else ""
@@ -237,8 +238,8 @@ def update_summary(_):
         return "Erreur dans les données."
 
 @app.callback(
-    dash.dependencies.Output("last-update", "children"),
-    dash.dependencies.Input("line-chart", "figure")
+    Output("last-update", "children"),
+    Input("line-chart", "figure")
 )
 def update_timestamp(fig):
     df = load_data()
@@ -246,6 +247,36 @@ def update_timestamp(fig):
         return ""
     last_time = df["timestamp"].max()
     return f"Dernière mise à jour : {last_time.strftime('%d/%m/%Y %H:%M')}"
+
+@app.callback(
+    Output("history-list", "children"),
+    Input("line-chart", "figure")
+)
+def display_history(_):
+    df = load_data()
+    if df.empty:
+        return ""
+    df_day = df.copy()
+    df_day["date"] = df_day["timestamp"].dt.date
+    grouped = df_day.groupby("date")["value"]
+    html_list = [
+        html.Div(f"📅 {date} — Clôture : {values.iloc[-1]:,.2f} — Vol : {values.std():.2f}")
+        for date, values in grouped
+    ][-5:]  # dernières 5 journées
+    return html.Div([
+        html.H4("Historique journalier :"),
+        html.Ul([html.Li(item) for item in html_list])
+    ])
+
+@app.callback(
+    Output("download-data", "data"),
+    Input("download-btn", "n_clicks"),
+    prevent_initial_call=True
+)
+def download_csv(n):
+    df = load_data()
+    csv = df.to_csv(index=False)
+    return dict(content=csv, filename="us30_data.csv")
 
 # ========== RUN APP ==========
 if __name__ == '__main__':
