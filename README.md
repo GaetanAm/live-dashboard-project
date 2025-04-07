@@ -15,7 +15,7 @@ Ce projet fournit un tableau de bord interactif pour visualiser en temps réel l
 - **Anomalies** : détection de pics statistiques
 - **Mode clair / sombre** synchronisé avec le style du graphe
 - **Historique journalier** : récap des derniers jours (clôture + volatilite)
-- **Export** CSV & PNG du graphe
+- **Export** CSV du graphe
 - **Footer** avec liens GitHub et source Investing.com
 
 ---
