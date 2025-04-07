@@ -14,6 +14,30 @@ external_stylesheets = []
 app = dash.Dash(__name__, external_scripts=external_scripts, external_stylesheets=external_stylesheets)
 app.title = "US-30 Dashboard"
 
+def get_container_style(theme, base_color="#f9f9f9"):
+    if theme == "plotly_dark":
+        return {
+            "backgroundColor": "#1e1e1e",
+            "color": "white",
+            "padding": "20px",
+            "borderRadius": "10px",
+            "boxShadow": "0 2px 5px rgba(0,0,0,0.3)",
+            "width": "500px",
+            "margin": "20px auto",
+            "fontFamily": "Arial"
+        }
+    else:
+        return {
+            "backgroundColor": base_color,
+            "color": "black",
+            "padding": "20px",
+            "borderRadius": "10px",
+            "boxShadow": "0 2px 5px rgba(0,0,0,0.1)",
+            "width": "500px",
+            "margin": "20px auto",
+            "fontFamily": "Arial"
+        }
+
 # ========== DATA LOADERS ==========
 def load_data():
     df = pd.read_csv(
@@ -250,12 +274,14 @@ def update_chart(options, chart_type, time_filter, theme):
 
 @app.callback(
     Output("daily-report", "children"),
-    Input("line-chart", "id")
+    Output("daily-report", "style"),
+    Input("line-chart", "id"),
+    Input("theme-toggle", "value")
 )
-def update_report(_):
+def update_report(_, theme):
     report = load_report()
     if not report:
-        return "No report available yet."
+        return "No report available yet.", get_container_style(theme)
     return html.Ul([
         html.Li(f"Date: {report['date']}"),
         html.Li(f"Open: {report['open']}"),
@@ -264,16 +290,19 @@ def update_report(_):
         html.Li(f"Max: {report['max']}"),
         html.Li(f"Mean: {report['mean']}"),
         html.Li(f"Volatility: {report['volatility']}")
-    ])
+    ]), get_container_style(theme)
+
 
 @app.callback(
     Output("summary-card", "children"),
-    Input("line-chart", "id")
+    Output("summary-card", "style"),
+    Input("line-chart", "id"),
+    Input("theme-toggle", "value")
 )
-def update_summary(_):
+def update_summary(_, theme):
     report = load_report()
     if not report:
-        return "Résumé non disponible."
+        return "Résumé non disponible.", get_container_style(theme, "#e6f2ff")
     try:
         open_val, close_val = float(report["open"]), float(report["close"])
         variation = (close_val - open_val) / open_val * 100
@@ -285,9 +314,10 @@ def update_summary(_):
             html.Div(f"Variation : {variation:+.2f}%"),
             html.Div(f"Tendance : {trend}"),
             html.Div(alert, style={"color": "red", "marginTop": "10px"}) if alert else ""
-        ]
+        ], get_container_style(theme, "#e6f2ff")
     except:
-        return "Erreur dans les données."
+        return "Erreur dans les données.", get_container_style(theme, "#e6f2ff")
+
 
 @app.callback(
     Output("last-update", "children"),
@@ -302,12 +332,14 @@ def update_timestamp(fig):
 
 @app.callback(
     Output("history-list", "children"),
-    Input("line-chart", "figure")
+    Output("history-list", "style"),
+    Input("line-chart", "figure"),
+    Input("theme-toggle", "value")
 )
-def display_history(_):
+def display_history(_, theme):
     df = load_data()
     if df.empty:
-        return ""
+        return "", get_container_style(theme, "#f2f2f2")
     df_day = df.copy()
     df_day["date"] = df_day["timestamp"].dt.date
     grouped = df_day.groupby("date")["value"]
@@ -318,7 +350,8 @@ def display_history(_):
     return html.Div([
         html.H4("Historique journalier :"),
         html.Ul([html.Li(item) for item in html_list])
-    ])
+    ]), get_container_style(theme, "#f2f2f2")
+
 
 @app.callback(
     Output("download-data", "data"),
