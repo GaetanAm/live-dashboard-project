@@ -141,6 +141,16 @@ app.layout = html.Div([
     ], style={"textAlign": "center", "marginTop": "20px"})
 ], style={"backgroundColor": "#ffffff", "fontFamily": "Arial"})
 
+    html.Footer([
+        html.Hr(),
+        html.Div("Projet réalisé par GaetanAm", style={"textAlign": "center"}),
+        html.Div([
+            html.A("🔗 GitHub", href="https://github.com/GaetanAm/live-dashboard-project", target="_blank", style={"marginRight": "15px"}),
+            html.A("📊 Source: Investing.com", href="https://www.investing.com/indices/us-30", target="_blank")
+        ], style={"textAlign": "center", "padding": "10px"})
+    ], style={"marginTop": "40px", "backgroundColor": "#f1f1f1", "padding": "10px 0"})
+
+], style={"backgroundColor": "#ffffff", "fontFamily": "Arial"})
 # ========== CALLBACKS ==========
 @app.callback(
     Output("line-chart", "figure"),
