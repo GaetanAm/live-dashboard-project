@@ -39,6 +39,19 @@ app.layout = html.Div([
         "fontFamily": "Arial"
     }),
 
+    html.Div([
+        html.Label("Afficher sous forme de bougies :", style={"marginRight": "10px"}),
+        dcc.RadioItems(
+            id="chart-type",
+            options=[
+                {"label": "Ligne", "value": "line"},
+                {"label": "Bougies", "value": "candlestick"}
+            ],
+            value="line",
+            labelStyle={"display": "inline-block", "marginRight": "20px"}
+        )
+    ], style={"textAlign": "center", "marginBottom": "20px"}),
+
     dcc.Graph(id="line-chart", figure={}, style={"width": "80%", "margin": "auto"}),
 
     html.Div([
@@ -57,9 +70,10 @@ app.layout = html.Div([
 
 @app.callback(
     dash.dependencies.Output("line-chart", "figure"),
-    dash.dependencies.Input("options", "value")
+    [dash.dependencies.Input("options", "value"),
+     dash.dependencies.Input("chart-type", "value")]
 )
-def update_chart(options):
+def update_chart(options, chart_type):
     df = load_data()
     report = load_report()
 
@@ -68,29 +82,43 @@ def update_chart(options):
 
     fig = go.Figure()
 
-    # Courbe principale
-    fig.add_trace(go.Scatter(
-        x=df["timestamp"], y=df["value"],
-        mode="lines", name="US-30 Value",
-        line=dict(color="royalblue")
-    ))
-
-    # Moyenne
-    if report and "mean" in options:
-        fig.add_hline(y=report["mean"], line_dash="dash", line_color="green", name="Moyenne")
-
-    # Zone de volatilité
-    if report and "volatility" in options:
-        mean = report["mean"]
-        vol = report["volatility"]
+    if chart_type == "line":
         fig.add_trace(go.Scatter(
-            x=list(df["timestamp"]) + list(df["timestamp"][::-1]),
-            y=[mean + vol] * len(df) + [mean - vol] * len(df),
-            fill='toself',
-            fillcolor='rgba(255, 0, 0, 0.1)',
-            line=dict(color='rgba(255,255,255,0)'),
-            hoverinfo="skip",
-            name="Zone de volatilité"
+            x=df["timestamp"], y=df["value"],
+            mode="lines", name="US-30 Value",
+            line=dict(color="royalblue")
+        ))
+
+        if report and "mean" in options:
+            fig.add_hline(y=report["mean"], line_dash="dash", line_color="green", name="Moyenne")
+
+        if report and "volatility" in options:
+            mean = report["mean"]
+            vol = report["volatility"]
+            fig.add_trace(go.Scatter(
+                x=list(df["timestamp"]) + list(df["timestamp"][::-1]),
+                y=[mean + vol] * len(df) + [mean - vol] * len(df),
+                fill='toself',
+                fillcolor='rgba(255, 0, 0, 0.1)',
+                line=dict(color='rgba(255,255,255,0)'),
+                hoverinfo="skip",
+                name="Zone de volatilité"
+            ))
+
+    else:
+        df_resampled = df.set_index("timestamp").resample("1H").agg({
+            "value": ["first", "max", "min", "last"]
+        }).dropna()
+        df_resampled.columns = ["open", "high", "low", "close"]
+        df_resampled = df_resampled.reset_index()
+
+        fig.add_trace(go.Candlestick(
+            x=df_resampled["timestamp"],
+            open=df_resampled["open"],
+            high=df_resampled["high"],
+            low=df_resampled["low"],
+            close=df_resampled["close"],
+            name="US-30 (OHLC)"
         ))
 
     fig.update_layout(
