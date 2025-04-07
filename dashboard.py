@@ -4,7 +4,7 @@ from dash import dcc, html
 import plotly.graph_objects as go
 import requests
 from datetime import datetime
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import io
 import base64
 
@@ -33,6 +33,19 @@ def load_report():
 # ========== APP LAYOUT ==========
 app.layout = html.Div([
     html.H1("US-30 Index (Dow Jones) - Live", style={"textAlign": "center"}),
+
+    html.Div([
+        html.Label("Mode d'affichage :"),
+        dcc.RadioItems(
+            id="theme-toggle",
+            options=[
+                {"label": "Clair", "value": "plotly_white"},
+                {"label": "Sombre", "value": "plotly_dark"}
+            ],
+            value="plotly_white",
+            labelStyle={"display": "inline-block", "marginRight": "20px"}
+        )
+    ], style={"textAlign": "center", "marginBottom": "10px"}),
 
     html.Div(id="summary-card", style={
         "textAlign": "center",
@@ -75,7 +88,7 @@ app.layout = html.Div([
     }),
 
     html.Div([
-        html.Label("Afficher les données sur :", style={"marginRight": "10px"}),
+        html.Label("Afficher les données sur :", title="Filtrer les dernières données"),
         dcc.Dropdown(
             id="time-filter",
             options=[
@@ -91,7 +104,7 @@ app.layout = html.Div([
     ], style={"textAlign": "center", "marginBottom": "20px"}),
 
     html.Div([
-        html.Label("Afficher sous forme de bougies :", style={"marginRight": "10px"}),
+        html.Label("Afficher sous forme de bougies :", title="Choisissez le type de graphique"),
         dcc.RadioItems(
             id="chart-type",
             options=[
@@ -108,30 +121,32 @@ app.layout = html.Div([
         dcc.Checklist(
             id="options",
             options=[
-                {"label": "Moyenne", "value": "mean"},
+                {"label": "Moyenne (mean)", "value": "mean"},
                 {"label": "Volatilité", "value": "volatility"},
                 {"label": "Prédiction naïve", "value": "prediction"},
-                {"label": "SMA (1h)", "value": "sma"}
+                {"label": "SMA (1h)", "value": "sma"},
+                {"label": "Anomalies (spikes)", "value": "anomaly"}
             ],
             value=[],
             labelStyle={"display": "inline-block", "marginRight": "20px"}
         )
     ], style={"textAlign": "center", "marginTop": "20px", "marginBottom": "30px", "fontFamily": "Arial"}),
 
-    dcc.Graph(id="line-chart", figure={}, style={"width": "80%", "margin": "auto"}),
+    dcc.Graph(id="line-chart", figure={}, style={"width": "90%", "margin": "auto"}),
 
     html.Div([
         html.Button("📥 Télécharger les données", id="download-btn"),
-        dcc.Download(id="download-data")
+        dcc.Download(id="download-data"),
+        html.Button("📸 Export PNG du graphe", id="export-png-btn", style={"marginLeft": "20px"})
     ], style={"textAlign": "center", "marginTop": "20px"})
 ], style={"backgroundColor": "#ffffff", "fontFamily": "Arial"})
 
 # ========== CALLBACKS ==========
 @app.callback(
     Output("line-chart", "figure"),
-    [Input("options", "value"), Input("chart-type", "value"), Input("time-filter", "value")]
+    [Input("options", "value"), Input("chart-type", "value"), Input("time-filter", "value"), Input("theme-toggle", "value")]
 )
-def update_chart(options, chart_type, time_filter):
+def update_chart(options, chart_type, time_filter, theme):
     df = load_data()
     report = load_report()
     if df.empty:
@@ -176,6 +191,15 @@ def update_chart(options, chart_type, time_filter):
                 line=dict(color="purple", dash="dash")
             ))
 
+        if "anomaly" in options:
+            std_dev = df["value"].std()
+            mean_val = df["value"].mean()
+            anomalies = df[(df["value"] > mean_val + 2 * std_dev) | (df["value"] < mean_val - 2 * std_dev)]
+            fig.add_trace(go.Scatter(
+                x=anomalies["timestamp"], y=anomalies["value"], mode="markers", name="Anomalies",
+                marker=dict(color="red", size=8, symbol="x")
+            ))
+
     else:
         df_resampled = df.set_index("timestamp").resample("1H").agg({"value": ["first", "max", "min", "last"]}).dropna()
         df_resampled.columns = ["open", "high", "low", "close"]
@@ -191,7 +215,7 @@ def update_chart(options, chart_type, time_filter):
         title="US-30 Price Over Time",
         xaxis_title="Timestamp",
         yaxis_title="Price",
-        template="plotly",
+        template=theme,
         hovermode="x unified"
     )
     return fig
@@ -262,7 +286,7 @@ def display_history(_):
     html_list = [
         html.Div(f"📅 {date} — Clôture : {values.iloc[-1]:,.2f} — Vol : {values.std():.2f}")
         for date, values in grouped
-    ][-5:]  # dernières 5 journées
+    ][-5:]
     return html.Div([
         html.H4("Historique journalier :"),
         html.Ul([html.Li(item) for item in html_list])
