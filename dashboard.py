@@ -143,6 +143,7 @@ app.layout = html.Div([
         html.Button("📅 Télécharger les données", id="download-btn"),
         dcc.Download(id="download-data"),
         html.Button("📸 Export PNG du graphe", id="export-png-btn", style={"marginLeft": "20px"})
+        dcc.Download(id="download-image")
     ], style={"textAlign": "center", "marginTop": "20px"}),
 
     html.Footer([
@@ -155,16 +156,19 @@ app.layout = html.Div([
     ], style={"marginTop": "40px", "backgroundColor": "#f1f1f1", "padding": "10px 0"})
 ], id="main-container", style={"backgroundColor": "#ffffff", "fontFamily": "Arial"})
 
-app.clientside_callback(
-    """
-    function(theme) {
-        document.body.className = theme === "plotly_dark" ? "dark" : "light";
-        return null;
-    }
-    """,
-    Output("theme-store", "data"),
+@app.callback(
+    Output("main-container", "style"),
     Input("theme-toggle", "value")
 )
+def toggle_theme(theme):
+    bg = "#ffffff" if theme == "plotly_white" else "#121212"
+    text = "#000000" if theme == "plotly_white" else "#ffffff"
+    return {
+        "backgroundColor": bg,
+        "color": text,
+        "fontFamily": "Arial"
+    }
+
 
 # ========== CALLBACKS ==========
 @app.callback(
