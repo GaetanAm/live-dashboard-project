@@ -142,7 +142,7 @@ app.layout = html.Div([
     html.Div([
         html.Button("📅 Télécharger les données", id="download-btn"),
         dcc.Download(id="download-data"),
-        html.Button("📸 Export PNG du graphe", id="export-png-btn", style={"marginLeft": "20px"})
+        html.Button("📸 Export PNG du graphe", id="export-png-btn", style={"marginLeft": "20px"}),
         dcc.Download(id="download-image")
     ], style={"textAlign": "center", "marginTop": "20px"}),
 
