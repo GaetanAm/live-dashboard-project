@@ -13,7 +13,10 @@ git config --global user.email "$GITHUB_USER@users.noreply.github.com"
 git clone https://$GH_TOKEN@github.com/$GITHUB_USER/$REPO_NAME.git repo
 cd repo
 
-cp ../data.csv .
+# Fusion des données
+cat ../data.csv >> data.csv
+sort -u data.csv -o data.csv  # dédoublonnage si besoin
+
 cp ../report.json .
 
 git add data.csv report.json
