@@ -1,9 +1,9 @@
 {
     "date": "2025-04-10",
-    "open": 40608.0,
-    "close": 40608.0,
-    "min": 40608.0,
-    "max": 40608.0,
-    "mean": 40608.0,
+    "open": NaN,
+    "close": NaN,
+    "min": NaN,
+    "max": NaN,
+    "mean": NaN,
     "volatility": NaN
 }
