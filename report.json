@@ -1,9 +1,9 @@
 {
     "date": "2025-04-11",
     "open": 39593.0,
-    "close": NaN,
+    "close": 39593.0,
     "min": 39593.0,
     "max": 39812.0,
-    "mean": 39595.49,
-    "volatility": 23.35
+    "mean": 39595.46,
+    "volatility": 23.21
 }
