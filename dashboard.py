@@ -45,9 +45,10 @@ def load_data():
         names=["timestamp", "value"]
     )
     df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df["value"] = df["value"].astype(str).str.replace(",", "")
-    df["value"] = pd.to_numeric(df["value"])
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    df = df.dropna(subset=["value"])
     return df
+
 
 def load_report():
     try:
